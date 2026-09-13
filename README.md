@@ -22,7 +22,7 @@ A original demo coded in Go using the Ebiten game engine.
 
 ## Requirements
 
-- Go 1.16 or higher
+- Go 1.25 or higher
 - Ebiten v2 game engine
 - YM player library
 
@@ -57,19 +57,30 @@ mkdir assets
 
 ### Run directly:
 ```bash
-go run main.go
+go run ./cmd/bilizir-demo
 ```
 
 ### Build executable:
 ```bash
-go build -o bilizir-demo main.go
+go build -o bilizir-demo ./cmd/bilizir-demo
 ```
 
 ### Build with embedded assets:
 The demo uses Go's embed directive to include all assets in the binary:
 ```bash
-go build -ldflags="-s -w" -o bilizir-demo main.go
+go build -ldflags="-s -w" -o bilizir-demo ./cmd/bilizir-demo
 ```
+
+### Run on an Android device:
+
+With one authorized arm64 Android device connected over USB:
+
+```bash
+./scripts/run-android.sh
+```
+
+The script builds the Ebitengine AAR and debug APK, installs it with ADB, and
+launches `com.olivierh.bilizirdemo/.MainActivity`.
 
 ## Controls
 

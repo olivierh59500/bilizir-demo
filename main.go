@@ -1,4 +1,5 @@
-package main
+// Package bilizir implements the Bilizir demo for desktop and mobile frontends.
+package bilizir
 
 import (
 	"bytes"
@@ -480,9 +481,6 @@ func NewGame() *Game {
 	// Initialize copper bars sine table
 	g.initCopperSin()
 
-	// Initialize audio context
-	g.audioContext = audio.NewContext(sampleRate)
-
 	return g
 }
 
@@ -604,6 +602,9 @@ func (g *Game) initScrollText() {
 // loadMusic loads and plays the YM music
 func (g *Game) loadMusic() error {
 	var err error
+
+	// Audio must be initialized after the Android activity and Ebiten view are ready.
+	g.audioContext = audio.NewContext(sampleRate)
 
 	// Create YM player
 	g.ymPlayer, err = NewYMPlayer(musicData, sampleRate, true)
@@ -1017,20 +1018,5 @@ func (g *Game) Cleanup() {
 	}
 	if g.ymPlayer != nil {
 		g.ymPlayer.Close()
-	}
-}
-
-func main() {
-	ebiten.SetWindowSize(screenWidth, screenHeight)
-	ebiten.SetWindowTitle("Bilizir from DMA - the Weird intro")
-	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
-
-	game := NewGame()
-
-	// Ensure cleanup on exit
-	defer game.Cleanup()
-
-	if err := ebiten.RunGame(game); err != nil {
-		log.Fatal(err)
 	}
 }
