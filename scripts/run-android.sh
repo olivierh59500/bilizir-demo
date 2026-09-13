@@ -46,7 +46,7 @@ go run github.com/hajimehoshi/ebiten/v2/cmd/ebitenmobile@v2.9.11 \
     ./mobile
 
 echo "→ Compilation de l’APK de débogage"
-"$project_root/android/gradlew" -p "$project_root/android" --console=plain assembleDebug
+"$project_root/android/gradlew" -p "$project_root/android" --console=plain clean assembleDebug
 
 adb_path="$android_sdk/platform-tools/adb"
 apk_path="$project_root/android/app/build/outputs/apk/debug/app-debug.apk"
