@@ -170,3 +170,9 @@ Each character is 32x32 pixels. The font supports uppercase letters, numbers, an
 - Original demo by Olivier H
 - YM player library by Olivier H
 - Ebiten game engine by Hajime Hoshi
+
+## Optional DCK version
+
+The original implementation remains at its original paths. Run it with `go run ./cmd/bilizir-demo`.
+
+The construction-kit version is in [dck/](dck/README.md). Run `go run ./dck/cmd/bilizir-demo` from this directory. Both versions share the original assets.
