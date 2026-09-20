@@ -4,4 +4,18 @@ This directory contains the construction-kit version of bilizir-demo. The origin
 
 Run the original with `go run ./cmd/bilizir-demo` and this version with `go run ./dck/cmd/bilizir-demo` from the repository root.
 
-The choreography and assets stay local; reusable rendering and effects live in `../../lib/democonstructionkit`. Second Reality retains its original ST3 music synchronization.
+The choreography and assets stay local; reusable rendering and effects live in `../../lib/democonstructionkit`.
+
+## Logo variation
+
+The DCK logo shares the text deformation by default; L toggles the historical logo.
+
+```sh
+go run ./dck/cmd/bilizir-demo -logo-row-phase=-40 -logo-column-phase=12 -logo-x-gain=.7 -logo-y-gain=-1.2
+```
+
+Also available: `-logo-row-height` and `-logo-column-width`. Phases are signed strip offsets, gains multiply amplitudes (zero disables an axis). Use `DefaultLogoWarpOptions` and `SetLogoWarpOptions` from Go. Changing logo options leaves the text and animation clocks independent.
+
+Native checks: `go test -tags dck_rendercheck ./dck`.
+
+See the [DCK effect configuration guide](../../../lib/democonstructionkit/docs/EFFECT_OPTIONS.md) for the shared API and examples.

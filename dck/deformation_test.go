@@ -26,6 +26,34 @@ func TestLogoVariationIsDefaultAndCanBeDisabled(t *testing.T) {
 	}
 }
 
+func TestIndependentLogoPhaseAndSignedAmplitude(t *testing.T) {
+	g := NewGame()
+	g.vbl = 123
+	g.offsetScr = 4.5
+	before := g.deformation.SampleX(5, kit.Frame{Tick: 123})
+	options := DefaultLogoWarpOptions()
+	options.RowPhase = -90
+	options.ColumnPhase = 12
+	options.HorizontalGain = -1.5
+	options.VerticalGain = .4
+	if err := g.SetLogoWarpOptions(options); err != nil {
+		t.Fatal(err)
+	}
+	if g.vbl != 123 || g.offsetScr != 4.5 || g.deformation.SampleX(5, kit.Frame{Tick: 123}) != before {
+		t.Fatal("logo variation modified the scroll or clocks")
+	}
+	if g.logoMargin < 75 {
+		t.Fatal("stronger horizontal deformation did not reserve source padding")
+	}
+	for row := -g.scrollXMod * 2; row < 0; row++ {
+		g.deformation.SampleX(row, kit.Frame{Tick: 123})
+	}
+	options.HorizontalGain = math.NaN()
+	if err := g.SetLogoWarpOptions(options); err == nil {
+		t.Fatal("NaN gain accepted")
+	}
+}
+
 func TestLogoPaddingCoversEveryHorizontalWave(t *testing.T) {
 	g := NewGame()
 	config, _, err := image.DecodeConfig(bytes.NewReader(logoImg))

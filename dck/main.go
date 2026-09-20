@@ -240,6 +240,8 @@ func appendColoredLine(vertices []ebiten.Vertex, indices []uint16, from, to poin
 
 // Game represents the main game state
 type Game struct {
+	logoOptions            LogoWarpOptions
+	logoMargin             int
 	deformation            composite.StripWarpConfig
 	logoWarp               *composite.StripWarp
 	logoBuffer             *ebiten.Image
@@ -282,6 +284,8 @@ type Game struct {
 // NewGame creates a new game instance
 func NewGame() *Game {
 	g := &Game{
+		logoOptions:            DefaultLogoWarpOptions(),
+		logoMargin:             deformationMargin,
 		speedMultiplier:        1.0,
 		cnt:                    0,
 		cnt2:                   0,

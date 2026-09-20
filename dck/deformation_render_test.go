@@ -22,7 +22,7 @@ import (
 
 var renderCheckFrames = []int{0, 1, 60, 240, 600, 1200, 2400, 4800}
 
-type renderCheckResult struct{ Frame, ScrollDifferentPixels, LogoDifferentPixels, BottomMarkerPixels int }
+type renderCheckResult struct{ Frame, ScrollDifferentPixels, LogoDifferentPixels, PhaseDifferentPixels, DisabledAxesDifferentPixels, BottomMarkerPixels int }
 type logoRenderCheck struct {
 	game                                                  *Game
 	frame, index                                          int
@@ -139,6 +139,55 @@ func (c *logoRenderCheck) Draw(screen *ebiten.Image) {
 		c.err = err
 		return
 	}
+	// Independent phase, signed amplitude and odd strip sizes must change the logo
+	// without resetting the clocks shared with the text.
+	options := DefaultLogoWarpOptions()
+	options.RowPhase = -40
+	options.ColumnPhase = 12
+	options.HorizontalGain = .75
+	options.VerticalGain = -.6
+	options.RowHeight = 3
+	options.ColumnWidth = 11
+	tick, phase := c.game.vbl, c.game.offsetScr
+	if err := c.game.SetLogoWarpOptions(options); err != nil {
+		c.err = err
+		return
+	}
+	c.plain.Clear()
+	c.game.drawLogo(c.plain)
+	c.plain.ReadPixels(c.b)
+	phaseDifferences := differentPixels(c.a, c.b)
+	if phaseDifferences == 0 || c.game.vbl != tick || c.game.offsetScr != phase {
+		c.err = fmt.Errorf("frame %d: independent logo phase failed", c.frame)
+		return
+	}
+	if err := saveCheckPNG(filepath.Join(c.directory, fmt.Sprintf("logo-shifted-%06d.png", c.frame)), c.plain); err != nil {
+		c.err = err
+		return
+	}
+	options.HorizontalGain = 0
+	options.VerticalGain = 0
+	if err := c.game.SetLogoWarpOptions(options); err != nil {
+		c.err = err
+		return
+	}
+	c.plain.Clear()
+	c.game.drawLogo(c.plain)
+	c.plain.ReadPixels(c.a)
+	c.expected.Clear()
+	op := ebiten.DrawImageOptions{}
+	op.GeoM.Translate(c.game.warpedLogoX(), 35)
+	c.expected.DrawImage(c.game.logo, &op)
+	c.expected.ReadPixels(c.b)
+	disabledDifferences := differentPixels(c.a, c.b)
+	if disabledDifferences != 0 {
+		c.err = fmt.Errorf("frame %d: zero-gain logo differs at %d pixels", c.frame, disabledDifferences)
+		return
+	}
+	if err := c.game.SetLogoWarpOptions(DefaultLogoWarpOptions()); err != nil {
+		c.err = err
+		return
+	}
 	original := c.game.logo
 	c.game.logo = c.marker
 	c.logo.Clear()
@@ -155,7 +204,7 @@ func (c *logoRenderCheck) Draw(screen *ebiten.Image) {
 		c.err = fmt.Errorf("frame %d: last logo row has %d pixels, want %d", c.frame, red, c.marker.Bounds().Dx())
 		return
 	}
-	c.results = append(c.results, renderCheckResult{c.frame, scrollDifferences, logoDifferences, red})
+	c.results = append(c.results, renderCheckResult{c.frame, scrollDifferences, logoDifferences, phaseDifferences, disabledDifferences, red})
 }
 
 // Retain the previous two-pass drawing operations as an independent visual oracle.
