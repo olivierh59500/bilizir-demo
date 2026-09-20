@@ -1,12 +1,17 @@
 # Bilizir Demo
 
-A original demo coded in Go using the Ebiten game engine.
+A demo coded in Go using Ebitengine and the local democonstructionkit module.
+
+The default version now applies the scrolling text's row/column deformation to
+the DMA logo as well. Press **L** to switch between the warped logo and its original
+appearance. Both use the same animation clocks, and the scrolling text retains
+its original rendering.
 
 ## Features
 
 - **Classic Demo Effects**:
   - Animated copper bars with dual sine wave movement
-  - Bouncing DMA logo with horizontal sine motion
+  - DMA logo with shared scrolling deformation and horizontal sine motion
   - Multiple rotating 3D cubes with complex movement patterns
   - TCB-style deformed scrolling text with wave effects
 
@@ -18,13 +23,15 @@ A original demo coded in Go using the Ebiten game engine.
 - **Interactive Controls**:
   - Volume adjustment (Up/Down arrow keys)
   - Speed control (+/- keys)
+  - Logo deformation toggle (L)
   - Window resizing support
 
 ## Requirements
 
-- Go 1.25 or higher
+- Go 1.26 or higher
 - Ebiten v2 game engine
 - YM player library
+- Local DCK checkout at `../../lib/democonstructionkit` (see the `go.mod` replacement)
 
 ## Installation
 
@@ -88,6 +95,32 @@ launches `com.olivierh.bilizirdemo/.MainActivity`.
 - **Arrow Down**: Decrease volume
 - **+/=**: Increase animation speed (max 2.0x)
 - **-**: Decrease animation speed (min 0.5x)
+- **L**: Toggle logo deformation; the variation is enabled by default
+
+## Shared logo and scrolling deformation
+
+`deformation.go` defines one `composite.StripWarpConfig`: two-pixel rows sample the
+original horizontal wave table, then sixteen-pixel columns follow the original
+vertical cosine. The text and logo each have their own `StripWarp` and scratch
+surface, using that same configuration and phase values.
+
+The logo keeps all 171 source rows, including its final partial two-pixel strip.
+Its horizontal oscillation is inset by 64 pixels to leave room for the deformation.
+The original path is restored when L disables the effect. Applications can select
+the mode through `Game.SetLogoDeformation` before or during playback.
+
+Native rendering verification, with device audio disabled:
+
+```sh
+go test -race ./...
+DCK_BILIZIR_CAPTURES=/tmp/bilizir-logo-warp \
+  go test -tags dck_rendercheck -run '^$' -count=1 -v .
+```
+
+The rendering check compares the scrolling against its previous implementation,
+checks that the logo changes, verifies repeated drawing is deterministic, and uses
+a bottom-row marker to detect clipping. It writes full-scene and isolated-logo
+PNGs plus `checks.json` at eight original animation ticks.
 
 ## Technical Details
 
@@ -98,7 +131,8 @@ launches `com.olivierh.bilizirdemo/.MainActivity`.
 ### Demo Components
 
 1. **Copper Bars**: Animated bars with dual sine wave movement creating a fluid motion effect
-2. **Logo Animation**: DMA logo with horizontal sine movement
+2. **Logo Animation**: DMA logo with the scroll's two deformation passes, a padded
+   horizontal sine movement, and an original-mode toggle
 3. **3D Cubes**: 12 rotating cubes with:
    - Real-time 3D rotation on all axes
    - Pink/magenta color scheme matching the demo aesthetic

@@ -5,10 +5,6 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
-	kit "github.com/olivierh59500/democonstructionkit"
-	"github.com/olivierh59500/democonstructionkit/composite"
-	"github.com/olivierh59500/democonstructionkit/presets"
-	"github.com/olivierh59500/democonstructionkit/scrolling"
 	"image"
 	"image/color"
 	_ "image/png"
@@ -18,6 +14,10 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	kit "github.com/olivierh59500/democonstructionkit"
+	"github.com/olivierh59500/democonstructionkit/composite"
+	"github.com/olivierh59500/democonstructionkit/presets"
+	"github.com/olivierh59500/democonstructionkit/scrolling"
 
 	"bilizir-demo/internal/ymaudio"
 )
@@ -48,10 +48,10 @@ var musicData []byte
 
 // ScrollText manages the scrolling text with deformation effects
 type ScrollText struct {
-	renderer     *scrolling.Scrolling
-	x            float64
-	workBuffer   *ebiten.Image
-	deformBuffer *ebiten.Image
+	renderer   *scrolling.Scrolling
+	x          float64
+	workBuffer *ebiten.Image
+	warp       *composite.StripWarp
 }
 
 // Cube3D represents a rotating 3D cube
@@ -238,6 +238,10 @@ func appendColoredLine(vertices []ebiten.Vertex, indices []uint16, from, to poin
 
 // Game represents the main game state
 type Game struct {
+	deformation            composite.StripWarpConfig
+	logoWarp               *composite.StripWarp
+	logoBuffer             *ebiten.Image
+	logoDeformationEnabled bool
 	// Demo assets
 	cubes      [nbCubes]*Cube3D
 	spritePos  [nbCubes]float64
@@ -276,14 +280,16 @@ type Game struct {
 // NewGame creates a new game instance
 func NewGame() *Game {
 	g := &Game{
-		speedMultiplier: 1.0,
-		cnt:             0,
-		cnt2:            0,
-		rasterBatch:     composite.NewQuadBatch(copperBars),
+		speedMultiplier:        1.0,
+		cnt:                    0,
+		cnt2:                   0,
+		rasterBatch:            composite.NewQuadBatch(copperBars),
+		logoDeformationEnabled: true,
 	}
 
 	// Initialize scroll deformation data
 	g.initScrollX()
+	g.configureDeformation()
 
 	// Initialize copper bars sine table
 	g.initCopperSin()
@@ -392,7 +398,7 @@ func (g *Game) loadAssets() error {
 	g.solidImage = ebiten.NewImage(3, 3)
 	g.solidImage.Fill(color.White)
 
-	return nil
+	return g.initLogoDeformation()
 }
 
 // initScrollText initializes the scrolling text with soap font
@@ -407,7 +413,11 @@ func (g *Game) initScrollText() {
 	if err != nil {
 		panic(err)
 	}
-	g.scrollText = &ScrollText{renderer: renderer, workBuffer: ebiten.NewImage(screenWidth+1024, scrollHeight), deformBuffer: ebiten.NewImage(screenWidth, scrollHeight)}
+	warp, err := composite.NewStripWarp(image.Pt(screenWidth, scrollHeight), g.deformation)
+	if err != nil {
+		panic(err)
+	}
+	g.scrollText = &ScrollText{renderer: renderer, workBuffer: ebiten.NewImage(screenWidth+1024, scrollHeight), warp: warp}
 }
 
 // loadMusic loads and plays the YM music
@@ -496,6 +506,9 @@ func (g *Game) Update() error {
 			g.speedMultiplier = 0.5
 		}
 	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyL) {
+		g.SetLogoDeformation(!g.logoDeformationEnabled)
+	}
 
 	// Update copper bars animation
 	g.cnt = (g.cnt + 3) & 0x3ff
@@ -549,6 +562,10 @@ func (g *Game) drawCopperBars(screen *ebiten.Image) {
 
 // drawLogo draws the animated DMA logo
 func (g *Game) drawLogo(screen *ebiten.Image) {
+	if g.logoDeformationEnabled {
+		g.drawWarpedLogo(screen)
+		return
+	}
 	op := ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(screenWidth-g.logoWidth)/2+math.Sin(g.logoPos)*float64(screenWidth-g.logoWidth)/2, 0)
 	composite.Instance{Image: g.logo, Options: op}.Draw(screen)
@@ -569,7 +586,6 @@ func (g *Game) drawCubes(screen *ebiten.Image) {
 func (g *Game) drawScrollText(screen *ebiten.Image) {
 	st := g.scrollText
 	st.workBuffer.Clear()
-	st.deformBuffer.Clear()
 	state := scrolling.IdentityState()
 	state.X = st.x
 	state.ScaleX = 2
@@ -579,17 +595,7 @@ func (g *Game) drawScrollText(screen *ebiten.Image) {
 	}
 	st.renderer.DrawAt(st.workBuffer, state)
 	frame := kit.Frame{Tick: uint64(g.vbl)}
-	composite.Strips{Axis: composite.Rows, Thickness: 2, Count: 32, Map: func(i int, source image.Rectangle, f kit.Frame) composite.Strip {
-		x := int(g.scrollX[(int(f.Tick)+i)%g.scrollXMod] + 64)
-		op := ebiten.DrawImageOptions{}
-		op.GeoM.Translate(0, float64(i*2))
-		return composite.Strip{Source: image.Rect(max(0, x), i*2, min(x+screenWidth, st.workBuffer.Bounds().Dx()), (i+1)*2), Options: op}
-	}}.Draw(st.deformBuffer, st.workBuffer, frame)
-	composite.Strips{Axis: composite.Columns, Thickness: 16, Count: 50, Map: func(i int, source image.Rectangle, f kit.Frame) composite.Strip {
-		op := ebiten.DrawImageOptions{}
-		op.GeoM.Translate(float64(i*16), float64(screenHeight-140)+35+math.Cos(g.offsetScr+float64(i)*.1)*35)
-		return composite.Strip{Source: source, Options: op}
-	}}.Draw(screen, st.deformBuffer, frame)
+	st.warp.DrawAt(screen, st.workBuffer, frame, 0, float64(screenHeight-140))
 }
 
 // Draw draws the entire demo
@@ -621,6 +627,16 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 
 // Cleanup cleans up resources
 func (g *Game) Cleanup() {
+	if g.logoWarp != nil {
+		g.logoWarp.Close()
+	}
+	if g.logoBuffer != nil {
+		g.logoBuffer.Deallocate()
+		g.logoBuffer = nil
+	}
+	if g.scrollText != nil && g.scrollText.warp != nil {
+		g.scrollText.warp.Close()
+	}
 	if g.audioPlayer != nil {
 		g.audioPlayer.Close()
 	}
