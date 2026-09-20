@@ -5,6 +5,10 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
+	kit "github.com/olivierh59500/democonstructionkit"
+	"github.com/olivierh59500/democonstructionkit/composite"
+	"github.com/olivierh59500/democonstructionkit/presets"
+	"github.com/olivierh59500/democonstructionkit/scrolling"
 	"image"
 	"image/color"
 	_ "image/png"
@@ -15,7 +19,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 
-	"bilizir-demo/internal/bitmapfont"
 	"bilizir-demo/internal/ymaudio"
 )
 
@@ -45,9 +48,8 @@ var musicData []byte
 
 // ScrollText manages the scrolling text with deformation effects
 type ScrollText struct {
+	renderer     *scrolling.Scrolling
 	x            float64
-	charWidth    int
-	glyphs       []*ebiten.Image
 	workBuffer   *ebiten.Image
 	deformBuffer *ebiten.Image
 }
@@ -246,11 +248,10 @@ type Game struct {
 	solidImage *ebiten.Image
 
 	// Copper bars animation
-	copperSin      []int
-	copperVertices [copperBars * 4]ebiten.Vertex
-	copperIndices  [copperBars * 6]uint16
-	cnt            int
-	cnt2           int
+	rasterBatch *composite.QuadBatch
+	copperSin   []int
+	cnt         int
+	cnt2        int
 
 	// Scroll integration
 	scrollText *ScrollText
@@ -278,6 +279,7 @@ func NewGame() *Game {
 		speedMultiplier: 1.0,
 		cnt:             0,
 		cnt2:            0,
+		rasterBatch:     composite.NewQuadBatch(copperBars),
 	}
 
 	// Initialize scroll deformation data
@@ -395,32 +397,17 @@ func (g *Game) loadAssets() error {
 
 // initScrollText initializes the scrolling text with soap font
 func (g *Game) initScrollText() {
-	const (
-		text        = `      HELLO, BILIZIR FROM DMA IS PROUD TO PRESENT HIS NEW GOLANG/EBITEN INTRO... NOT SO BAD FOR A FEW HOURS OF HARD WORK :)  HI TO ALL MEMBERS OF DMA (COUCOU PHILIPPE ET DIDIER ALORS PAS MAL NON ?), ALL MEMBERS OF THE UNION, ALL DEMOSCENE FANS...   LET'S WRAP...      `
-		charWidth   = 32
-		charHeight  = 32
-		charsPerRow = 10
-	)
-
-	scroll := &ScrollText{
-		x:            0,
-		charWidth:    charWidth,
-		glyphs:       make([]*ebiten.Image, 0, len(text)),
-		workBuffer:   ebiten.NewImage(screenWidth+1024, scrollHeight),
-		deformBuffer: ebiten.NewImage(screenWidth, scrollHeight),
+	const text = `      HELLO, BILIZIR FROM DMA IS PROUD TO PRESENT HIS NEW GOLANG/EBITEN INTRO... NOT SO BAD FOR A FEW HOURS OF HARD WORK :)  HI TO ALL MEMBERS OF DMA (COUCOU PHILIPPE ET DIDIER ALORS PAS MAL NON ?), ALL MEMBERS OF THE UNION, ALL DEMOSCENE FANS...   LET'S WRAP...      `
+	spec, _ := presets.FindFont("bilizir-demo")
+	metrics, err := spec.Build(g.scrollFont.Bounds())
+	if err != nil {
+		panic(err)
 	}
-	for _, ch := range text {
-		charIndex, found := bitmapfont.Index(ch)
-		if !found {
-			scroll.glyphs = append(scroll.glyphs, nil)
-			continue
-		}
-		row := charIndex / charsPerRow
-		col := charIndex % charsPerRow
-		rect := image.Rect(col*charWidth, row*charHeight, (col+1)*charWidth, (row+1)*charHeight)
-		scroll.glyphs = append(scroll.glyphs, g.scrollFont.SubImage(rect).(*ebiten.Image))
+	renderer, err := scrolling.New(scrolling.Config{Text: text, Fonts: map[string]scrolling.Face{"default": {Atlas: g.scrollFont, Metrics: metrics}}})
+	if err != nil {
+		panic(err)
 	}
-	g.scrollText = scroll
+	g.scrollText = &ScrollText{renderer: renderer, workBuffer: ebiten.NewImage(screenWidth+1024, scrollHeight), deformBuffer: ebiten.NewImage(screenWidth, scrollHeight)}
 }
 
 // loadMusic loads and plays the YM music
@@ -532,7 +519,7 @@ func (g *Game) Update() error {
 	// Update scroll text
 	g.scrollText.x -= scrollSpeed * g.speedMultiplier
 	// Adjusted for 2x font scale
-	textWidth := float64(len(g.scrollText.glyphs) * g.scrollText.charWidth * 2)
+	textWidth := g.scrollText.renderer.Length() * 2
 	if g.scrollText.x < -textWidth {
 		g.scrollText.x = float64(screenWidth)
 	}
@@ -549,63 +536,22 @@ func (g *Game) drawCopperBars(screen *ebiten.Image) {
 	if g.bars == nil {
 		return
 	}
-
-	barsWidth, _ := g.bars.Size()
-	vertices := g.copperVertices[:0]
-	indices := g.copperIndices[:0]
-	cc := 0
+	w := g.bars.Bounds().Dx()
+	g.rasterBatch.Begin(screen, g.bars)
 	for i := 0; i < copperBars; i++ {
-		val2 := (g.cnt + i*7) & 0x3ff
-		val := g.copperSin[val2]
-		val2 = (g.cnt2 + i*10) & 0x3ff
-		val += g.copperSin[val2]
-		val += 60
-
-		xPos := val >> 1
-		yPos := i << 1
-		height := screenHeight - yPos
-		destination := [4]point2D{
-			{x: float32(xPos), y: float32(yPos)},
-			{x: float32(xPos + barsWidth), y: float32(yPos)},
-			{x: float32(xPos + barsWidth), y: float32(yPos + height)},
-			{x: float32(xPos), y: float32(yPos + height)},
-		}
-		source := image.Rect(0, cc, barsWidth, cc+2)
-		vertices, indices = appendTexturedQuad(vertices, indices, destination, source)
-
-		cc += 2
-		if cc >= 20 {
-			cc = 0
-		}
+		value := g.copperSin[(g.cnt+i*7)&0x3ff] + g.copperSin[(g.cnt2+i*10)&0x3ff] + 60
+		y := i * 2
+		cc := (i * 2) % 20
+		g.rasterBatch.Rect(image.Rect(0, cc, w, cc+2), float32(value>>1), float32(y), float32(w), float32(screenHeight-y))
 	}
-	screen.DrawTriangles(vertices, indices, g.bars, nil)
-}
-
-func appendTexturedQuad(vertices []ebiten.Vertex, indices []uint16, destination [4]point2D, source image.Rectangle) ([]ebiten.Vertex, []uint16) {
-	base := uint16(len(vertices))
-	sourcePoints := [4]point2D{
-		{x: float32(source.Min.X), y: float32(source.Min.Y)},
-		{x: float32(source.Max.X), y: float32(source.Min.Y)},
-		{x: float32(source.Max.X), y: float32(source.Max.Y)},
-		{x: float32(source.Min.X), y: float32(source.Max.Y)},
-	}
-	for i, point := range destination {
-		vertices = append(vertices, ebiten.Vertex{
-			DstX: point.x, DstY: point.y,
-			SrcX: sourcePoints[i].x, SrcY: sourcePoints[i].y,
-			ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1,
-		})
-	}
-	indices = append(indices, base, base+1, base+2, base, base+2, base+3)
-	return vertices, indices
+	g.rasterBatch.Flush()
 }
 
 // drawLogo draws the animated DMA logo
 func (g *Game) drawLogo(screen *ebiten.Image) {
-	var op ebiten.DrawImageOptions
-	xPos := (float64(screenWidth-g.logoWidth) / 2) + (math.Sin(g.logoPos) * float64(screenWidth-g.logoWidth) / 2)
-	op.GeoM.Translate(xPos, 0)
-	screen.DrawImage(g.logo, &op)
+	op := ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(screenWidth-g.logoWidth)/2+math.Sin(g.logoPos)*float64(screenWidth-g.logoWidth)/2, 0)
+	composite.Instance{Image: g.logo, Options: op}.Draw(screen)
 }
 
 // drawCubes draws the rotating 3D cubes
@@ -621,64 +567,29 @@ func (g *Game) drawCubes(screen *ebiten.Image) {
 
 // drawScrollText draws the TCB-style scrolling text with deformation
 func (g *Game) drawScrollText(screen *ebiten.Image) {
-	// Clear buffers
-	g.scrollText.workBuffer.Clear()
-	g.scrollText.deformBuffer.Clear()
-
-	// Scale factor for the font
-	const fontScale = 2.0
-	scaledCharWidth := float64(g.scrollText.charWidth) * fontScale
-
-	// Draw text to work buffer with 2x scale
-	x := g.scrollText.x
-	for _, glyph := range g.scrollText.glyphs {
-		if glyph == nil {
-			x += scaledCharWidth
-			continue
-		}
-
-		if x > -scaledCharWidth && x < float64(g.scrollText.workBuffer.Bounds().Dx()) {
-			var op ebiten.DrawImageOptions
-			op.GeoM.Scale(fontScale, fontScale)
-			op.GeoM.Translate(x, 0)
-			g.scrollText.workBuffer.DrawImage(glyph, &op)
-		}
-
-		x += scaledCharWidth
+	st := g.scrollText
+	st.workBuffer.Clear()
+	st.deformBuffer.Clear()
+	state := scrolling.IdentityState()
+	state.X = st.x
+	state.ScaleX = 2
+	state.ScaleY = 2
+	state.Map = func(sample scrolling.Sample, op *ebiten.DrawImageOptions) bool {
+		return sample.X > -64 && sample.X < float64(st.workBuffer.Bounds().Dx())
 	}
-
-	// Apply deformation line by line (adjusted for 2x scale)
-	for y := 0; y < 32; y++ { // Increased from 25 to 32 for larger font
-		offsetX := g.scrollX[(g.vbl+y)%g.scrollXMod] + 64
-
-		srcRect := image.Rect(int(offsetX), y*2, int(offsetX)+screenWidth, (y+1)*2)
-		if srcRect.Min.X < 0 {
-			srcRect.Min.X = 0
-		}
-		if srcRect.Max.X > g.scrollText.workBuffer.Bounds().Dx() {
-			srcRect.Max.X = g.scrollText.workBuffer.Bounds().Dx()
-		}
-
-		subImg := g.scrollText.workBuffer.SubImage(srcRect).(*ebiten.Image)
-
-		var dstOp ebiten.DrawImageOptions
-		dstOp.GeoM.Translate(0, float64(y*2))
-		g.scrollText.deformBuffer.DrawImage(subImg, &dstOp)
-	}
-
-	// Draw deformed scroll with vertical wave
-	for x := 0; x < 50; x++ { // Adjusted for 800px width
-		yOffset := 35 + math.Cos(g.offsetScr+float64(x)*0.1)*35
-
-		var op ebiten.DrawImageOptions
-		op.GeoM.Translate(float64(x*16), float64(screenHeight-140)+yOffset) // Adjusted Y position for larger text
-
-		subImg := g.scrollText.deformBuffer.SubImage(
-			image.Rect(x*16, 0, (x+1)*16, scrollHeight),
-		).(*ebiten.Image)
-
-		screen.DrawImage(subImg, &op)
-	}
+	st.renderer.DrawAt(st.workBuffer, state)
+	frame := kit.Frame{Tick: uint64(g.vbl)}
+	composite.Strips{Axis: composite.Rows, Thickness: 2, Count: 32, Map: func(i int, source image.Rectangle, f kit.Frame) composite.Strip {
+		x := int(g.scrollX[(int(f.Tick)+i)%g.scrollXMod] + 64)
+		op := ebiten.DrawImageOptions{}
+		op.GeoM.Translate(0, float64(i*2))
+		return composite.Strip{Source: image.Rect(max(0, x), i*2, min(x+screenWidth, st.workBuffer.Bounds().Dx()), (i+1)*2), Options: op}
+	}}.Draw(st.deformBuffer, st.workBuffer, frame)
+	composite.Strips{Axis: composite.Columns, Thickness: 16, Count: 50, Map: func(i int, source image.Rectangle, f kit.Frame) composite.Strip {
+		op := ebiten.DrawImageOptions{}
+		op.GeoM.Translate(float64(i*16), float64(screenHeight-140)+35+math.Cos(g.offsetScr+float64(i)*.1)*35)
+		return composite.Strip{Source: source, Options: op}
+	}}.Draw(screen, st.deformBuffer, frame)
 }
 
 // Draw draws the entire demo
