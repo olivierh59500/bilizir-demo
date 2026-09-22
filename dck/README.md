@@ -4,7 +4,10 @@ This directory contains the construction-kit version of bilizir-demo. The origin
 
 Run the original with `go run ./cmd/bilizir-demo` and this version with `go run ./dck/cmd/bilizir-demo` from the repository root.
 
-The choreography and assets stay local; reusable rendering and effects live in `../../lib/democonstructionkit`.
+The choreography and assets remain in this repository. Reusable rendering and
+effects come from the published `github.com/olivierh59500/democonstructionkit`
+module pinned in `go.mod`. Go downloads the dependencies automatically, including
+`github.com/olivierh59500/ym-player v1.0.0` for YM playback.
 
 ## Logo variation
 

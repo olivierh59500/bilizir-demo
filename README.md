@@ -1,6 +1,6 @@
 # Bilizir Demo
 
-A demo coded in Go using Ebitengine and the local democonstructionkit module.
+A demo coded in Go using Ebitengine and the democonstructionkit module.
 
 The default version now applies the scrolling text's row/column deformation to
 the DMA logo as well. Press **L** to switch between the warped logo and its original
@@ -29,9 +29,10 @@ its original rendering.
 ## Requirements
 
 - Go 1.26 or higher
-- Ebiten v2 game engine
-- YM player library
-- Local DCK checkout at `../../lib/democonstructionkit` (see the `go.mod` replacement)
+- Ebitengine and democonstructionkit versions pinned in `go.mod`
+- `github.com/olivierh59500/ym-player v1.0.0`
+
+Go downloads these published dependencies automatically.
 
 ## Installation
 
@@ -43,10 +44,7 @@ cd bilizir-demo
 
 2. Install dependencies:
 ```bash
-go mod init bilizir-demo
-go get github.com/hajimehoshi/ebiten/v2
-go get github.com/hajimehoshi/ebiten/v2/audio
-go get github.com/olivierh59500/ym-player/pkg/stsound
+go mod download
 ```
 
 3. Create the assets directory structure:
