@@ -34,7 +34,6 @@ const (
 	scrollHeight = 64 // Increased from 50 to 64 for 2x font
 	scrollSpeed  = 4.0
 	sampleRate   = 44100
-	copperBars   = screenHeight / 2
 )
 
 // Embed all assets
@@ -76,10 +75,7 @@ type Game struct {
 	bars      *ebiten.Image
 
 	// Copper bars animation
-	rasterBatch *composite.QuadBatch
-	copperSin   []int
-	cnt         int
-	cnt2        int
+	copper *composite.CopperBars
 
 	// Scroll integration
 	scrollText *ScrollText
@@ -107,9 +103,6 @@ func NewGame() *Game {
 		logoOptions:            DefaultLogoWarpOptions(),
 		logoMargin:             deformationMargin,
 		speedMultiplier:        1.0,
-		cnt:                    0,
-		cnt2:                   0,
-		rasterBatch:            composite.NewQuadBatch(copperBars),
 		logoDeformationEnabled: true,
 	}
 
@@ -117,14 +110,7 @@ func NewGame() *Game {
 	g.initScrollX()
 	g.configureDeformation()
 
-	// Initialize copper bars sine table
-	g.initCopperSin()
-
 	return g
-}
-
-func (g *Game) initCopperSin() {
-	g.copperSin = presets.BilizirCopperOffsets()
 }
 
 func (g *Game) initScrollX() {
@@ -169,6 +155,10 @@ func (g *Game) loadAssets() error {
 	g.bars = ebiten.NewImageFromImage(img)
 	if _, height := g.bars.Size(); height < 20 {
 		return fmt.Errorf("copper bars image height is %d, want at least 20", height)
+	}
+	g.copper, err = composite.NewCopperBars(presets.BilizirCopperBars(g.bars, screenHeight, composite.CopperQuads, composite.MaskedClock))
+	if err != nil {
+		return err
 	}
 
 	// Load scroll font
@@ -291,8 +281,9 @@ func (g *Game) Update() error {
 	}
 
 	// Update copper bars animation
-	g.cnt = (g.cnt + 3) & 0x3ff
-	g.cnt2 = (g.cnt2 - 5) & 0x3ff
+	if err := g.copper.Update(kit.Frame{}); err != nil {
+		return err
+	}
 
 	// Update logo position
 	g.logoPos += 0.05 * g.speedMultiplier
@@ -322,22 +313,6 @@ func (g *Game) Update() error {
 	g.offsetScr += 0.1 * g.speedMultiplier
 
 	return nil
-}
-
-// drawCopperBars draws the animated copper bars effect
-func (g *Game) drawCopperBars(screen *ebiten.Image) {
-	if g.bars == nil {
-		return
-	}
-	w := g.bars.Bounds().Dx()
-	g.rasterBatch.Begin(screen, g.bars)
-	for i := 0; i < copperBars; i++ {
-		value := g.copperSin[(g.cnt+i*7)&0x3ff] + g.copperSin[(g.cnt2+i*10)&0x3ff] + 60
-		y := i * 2
-		cc := (i * 2) % 20
-		g.rasterBatch.Rect(image.Rect(0, cc, w, cc+2), float32(value>>1), float32(y), float32(w), float32(screenHeight-y))
-	}
-	g.rasterBatch.Flush()
 }
 
 // drawLogo draws the animated DMA logo
@@ -388,7 +363,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.Black)
 
 	// Draw copper bars first (background)
-	g.drawCopperBars(screen)
+	g.copper.Draw(screen)
 
 	// Draw logo on top
 	g.drawLogo(screen)

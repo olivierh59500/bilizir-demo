@@ -9,6 +9,11 @@ effects come from the published `github.com/olivierh59500/democonstructionkit`
 module pinned in `go.mod`. Music is opened with `sound.Open`; DCK selects the decoder from the asset and
 provides the configured stereo PCM format. The demo keeps its playback level and loop settings.
 
+The 300 background copper bars use one `composite.CopperBars` instance with
+batched quads and the shared two-clock table preset. Width, source-strip period,
+bar count, sample spacing and clock phases can be changed in its config. The
+20-second migration capture matched all 1,200 original decoded frames.
+
 ## Logo variation
 
 The DCK logo shares the text deformation by default; L toggles the historical logo.
