@@ -78,10 +78,7 @@ type Game struct {
 
 	// Scroll integration
 	scrollText *ScrollText
-	scrollX    []float64
-	scrollXMod int
-	vbl        int
-	offsetScr  float64
+	warpClock  *motion.WarpTableClock
 	scrollFont *ebiten.Image
 
 	// Audio
@@ -105,20 +102,20 @@ func NewGame() *Game {
 		logoDeformationEnabled: true,
 	}
 
-	// Initialize scroll deformation data
-	g.initScrollX()
-	g.configureDeformation()
-
-	return g
-}
-
-func (g *Game) initScrollX() {
-	var err error
-	g.scrollX, err = motion.CompileWaveTable(presets.BilizirWaveSections()...)
+	clockConfig, err := presets.BilizirWarpClockConfig()
 	if err != nil {
 		panic(err)
 	}
-	g.scrollXMod = len(g.scrollX)
+	g.warpClock, err = motion.NewWarpTableClock(clockConfig)
+	if err != nil {
+		panic(err)
+	}
+	g.deformation, err = presets.BilizirStripWarpConfig(g.warpClock)
+	if err != nil {
+		panic(err)
+	}
+
+	return g
 }
 
 // loadAssets loads all image assets from embedded data
@@ -294,11 +291,7 @@ func (g *Game) Update() error {
 		g.scrollText.x = float64(screenWidth)
 	}
 
-	// Update animation counters
-	g.vbl++
-	g.offsetScr += 0.1 * g.speedMultiplier
-
-	return nil
+	return g.warpClock.Step(g.speedMultiplier)
 }
 
 // drawLogo draws the animated DMA logo
@@ -324,7 +317,7 @@ func (g *Game) drawScrollText(screen *ebiten.Image) {
 		return sample.X > -64 && sample.X < float64(st.workBuffer.Bounds().Dx())
 	}
 	st.renderer.DrawAt(st.workBuffer, state)
-	frame := kit.Frame{Tick: uint64(g.vbl)}
+	frame := kit.Frame{Tick: g.warpClock.Tick()}
 	st.warp.DrawAt(screen, st.workBuffer, frame, 0, float64(screenHeight-140))
 }
 

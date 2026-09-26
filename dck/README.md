@@ -27,7 +27,10 @@ The DCK logo shares the text deformation by default; L toggles the historical lo
 go run ./dck/cmd/bilizir-demo -logo-row-phase=-40 -logo-column-phase=12 -logo-x-gain=.7 -logo-y-gain=-1.2
 ```
 
-Also available: `-logo-row-height` and `-logo-column-width`. Phases are signed strip offsets, gains multiply amplitudes (zero disables an axis). Use `DefaultLogoWarpOptions` and `SetLogoWarpOptions` from Go. Changing logo options leaves the text and animation clocks independent.
+Also available: `-logo-row-height` and `-logo-column-width`. Phases are signed strip offsets, gains multiply amplitudes (zero disables an axis). Use `DefaultLogoWarpOptions` and `SetLogoWarpOptions` from Go. Changing logo options does not reset the shared wave clock or the text's parameters.
+The text and logo warps now share a DCK `motion.WarpTableClock`, while each
+`StripWarp` keeps its own phase, gain and strip-size variation. The DCK game no
+longer stores a duplicate wave table or computes the column cosine itself.
 
 Native checks: `go test -tags dck_rendercheck ./dck`.
 

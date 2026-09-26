@@ -148,7 +148,7 @@ func (c *logoRenderCheck) Draw(screen *ebiten.Image) {
 	options.VerticalGain = -.6
 	options.RowHeight = 3
 	options.ColumnWidth = 11
-	tick, phase := c.game.vbl, c.game.offsetScr
+	tick, phase := c.game.warpClock.Tick(), c.game.warpClock.Phase()
 	if err := c.game.SetLogoWarpOptions(options); err != nil {
 		c.err = err
 		return
@@ -157,7 +157,7 @@ func (c *logoRenderCheck) Draw(screen *ebiten.Image) {
 	c.game.drawLogo(c.plain)
 	c.plain.ReadPixels(c.b)
 	phaseDifferences := differentPixels(c.a, c.b)
-	if phaseDifferences == 0 || c.game.vbl != tick || c.game.offsetScr != phase {
+	if phaseDifferences == 0 || c.game.warpClock.Tick() != tick || c.game.warpClock.Phase() != phase {
 		c.err = fmt.Errorf("frame %d: independent logo phase failed", c.frame)
 		return
 	}
@@ -221,7 +221,8 @@ func (c *logoRenderCheck) drawReferenceScroll(dst *ebiten.Image) {
 	}
 	g.scrollText.renderer.DrawAt(c.work, state)
 	for row := 0; row < 32; row++ {
-		x := int(g.scrollX[(g.vbl+row)%g.scrollXMod] + 64)
+		table := g.warpClock.Table()
+		x := int(table[(int(g.warpClock.Tick()%uint64(len(table)))+row)%len(table)] + 64)
 		r := image.Rect(max(0, x), row*2, min(x+screenWidth, c.work.Bounds().Dx()), (row+1)*2)
 		op := ebiten.DrawImageOptions{}
 		op.GeoM.Translate(0, float64(row*2))
@@ -230,7 +231,7 @@ func (c *logoRenderCheck) drawReferenceScroll(dst *ebiten.Image) {
 	for column := 0; column < 50; column++ {
 		r := image.Rect(column*16, 0, (column+1)*16, scrollHeight)
 		op := ebiten.DrawImageOptions{}
-		op.GeoM.Translate(float64(column*16), float64(screenHeight-140)+35+math.Cos(g.offsetScr+float64(column)*.1)*35)
+		op.GeoM.Translate(float64(column*16), float64(screenHeight-140)+35+math.Cos(g.warpClock.Phase()+float64(column)*.1)*35)
 		dst.DrawImage(c.deformed.SubImage(r).(*ebiten.Image), &op)
 	}
 }

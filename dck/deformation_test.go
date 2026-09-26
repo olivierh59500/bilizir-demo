@@ -14,10 +14,12 @@ func TestLogoVariationIsDefaultAndCanBeDisabled(t *testing.T) {
 	if !g.LogoDeformationEnabled() {
 		t.Fatal("logo deformation must be enabled by default")
 	}
-	g.vbl = 100
-	g.offsetScr = 12.3
+	g.warpClock.SetTick(100)
+	if err := g.warpClock.SetPhase(12.3); err != nil {
+		t.Fatal(err)
+	}
 	g.SetLogoDeformation(false)
-	if g.LogoDeformationEnabled() || g.vbl != 100 || g.offsetScr != 12.3 {
+	if g.LogoDeformationEnabled() || g.warpClock.Tick() != 100 || g.warpClock.Phase() != 12.3 {
 		t.Fatal("mode change modified animation clocks")
 	}
 	g.SetLogoDeformation(true)
@@ -28,8 +30,10 @@ func TestLogoVariationIsDefaultAndCanBeDisabled(t *testing.T) {
 
 func TestIndependentLogoPhaseAndSignedAmplitude(t *testing.T) {
 	g := NewGame()
-	g.vbl = 123
-	g.offsetScr = 4.5
+	g.warpClock.SetTick(123)
+	if err := g.warpClock.SetPhase(4.5); err != nil {
+		t.Fatal(err)
+	}
 	before := g.deformation.SampleX(5, kit.Frame{Tick: 123})
 	options := DefaultLogoWarpOptions()
 	options.RowPhase = -90
@@ -39,13 +43,13 @@ func TestIndependentLogoPhaseAndSignedAmplitude(t *testing.T) {
 	if err := g.SetLogoWarpOptions(options); err != nil {
 		t.Fatal(err)
 	}
-	if g.vbl != 123 || g.offsetScr != 4.5 || g.deformation.SampleX(5, kit.Frame{Tick: 123}) != before {
+	if g.warpClock.Tick() != 123 || g.warpClock.Phase() != 4.5 || g.deformation.SampleX(5, kit.Frame{Tick: 123}) != before {
 		t.Fatal("logo variation modified the scroll or clocks")
 	}
 	if g.logoMargin < 75 {
 		t.Fatal("stronger horizontal deformation did not reserve source padding")
 	}
-	for row := -g.scrollXMod * 2; row < 0; row++ {
+	for row := -g.warpClock.Len() * 2; row < 0; row++ {
 		g.deformation.SampleX(row, kit.Frame{Tick: 123})
 	}
 	options.HorizontalGain = math.NaN()
@@ -64,7 +68,8 @@ func TestLogoPaddingCoversEveryHorizontalWave(t *testing.T) {
 	// Check both movement extremes against every entry in the original table.
 	for _, phase := range []float64{-math.Pi / 2, math.Pi / 2} {
 		g.logoPos = phase
-		for tick := range g.scrollX {
+		for tick := 0; tick < g.warpClock.Len(); tick++ {
+			g.warpClock.SetTick(uint64(tick))
 			for row := 0; row < (config.Height+1)/2; row++ {
 				x := g.warpedLogoX() + deformationMargin - float64(g.deformation.SampleX(row, kit.Frame{Tick: uint64(tick)}))
 				if x < 0 || x+float64(config.Width) > screenWidth {

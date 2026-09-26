@@ -8,29 +8,12 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	kit "github.com/olivierh59500/democonstructionkit"
 	"github.com/olivierh59500/democonstructionkit/composite"
+	"github.com/olivierh59500/democonstructionkit/presets"
 )
 
 // The source margin cancels the scroll's original +64 sampling origin. It also
 // reserves room for the horizontal displacement, whose amplitude is at most 50.
-const deformationMargin = 64
-
-func (g *Game) configureDeformation() {
-	g.deformation = composite.StripWarpConfig{
-		RowHeight:    2,
-		ColumnWidth:  16,
-		VerticalBias: 35,
-		SampleX: func(row int, frame kit.Frame) int {
-			index := (int(frame.Tick%uint64(g.scrollXMod)) + row) % g.scrollXMod
-			if index < 0 {
-				index += g.scrollXMod
-			}
-			return int(g.scrollX[index] + deformationMargin)
-		},
-		OffsetY: func(column int, _ kit.Frame) float64 {
-			return math.Cos(g.offsetScr+float64(column)*0.1) * 35
-		},
-	}
-}
+const deformationMargin = presets.BilizirWarpSampleOrigin
 
 func (g *Game) initLogoDeformation() error {
 	height := g.logo.Bounds().Dy()
@@ -82,7 +65,7 @@ func (g *Game) drawWarpedLogo(screen *ebiten.Image) {
 	op := ebiten.DrawImageOptions{}
 	op.GeoM.Translate(g.warpedLogoX()+float64(g.logoMargin), 0)
 	composite.Instance{Image: g.logo, Options: op}.Draw(g.logoBuffer)
-	g.logoWarp.DrawAt(screen, g.logoBuffer, kit.Frame{Tick: uint64(g.vbl)}, 0, 0)
+	g.logoWarp.DrawAt(screen, g.logoBuffer, kit.Frame{Tick: g.warpClock.Tick()}, 0, 0)
 }
 
 // LogoWarpOptions changes the logo independently while both effects keep their
