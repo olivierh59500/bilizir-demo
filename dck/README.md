@@ -31,6 +31,11 @@ Also available: `-logo-row-height` and `-logo-column-width`. Phases are signed s
 The text and logo warps now share a DCK `motion.WarpTableClock`, while each
 `StripWarp` keeps its own phase, gain and strip-size variation. The DCK game no
 longer stores a duplicate wave table or computes the column cosine itself.
+The proportional text now uses a relative DCK wrap clock and two virtual
+glyph copies, so its next pass is already entering when the previous one
+leaves. This intentionally removes the blank interval after the first full
+message while preserving all positions before that boundary. The original Go
+version remains unchanged.
 
 Native checks: `go test -tags dck_rendercheck ./dck`.
 

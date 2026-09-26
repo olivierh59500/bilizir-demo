@@ -53,7 +53,7 @@ var musicData = originalassets.
 
 type ScrollText struct {
 	renderer   *scrolling.Scrolling
-	x          float64
+	loop       *motion.WrapBank
 	workBuffer *ebiten.Image
 	warp       *composite.StripWarp
 }
@@ -175,7 +175,16 @@ func (g *Game) initScrollText() {
 	if err != nil {
 		panic(err)
 	}
-	g.scrollText = &ScrollText{renderer: renderer, workBuffer: ebiten.NewImage(screenWidth+1024, scrollHeight), warp: warp}
+	loopConfig, err := presets.BilizirScrollLoop(renderer.Length() * 2)
+	if err != nil {
+		panic(err)
+	}
+	loop, err := motion.NewWrapBank(loopConfig)
+	if err != nil {
+		panic(err)
+	}
+	g.scrollText = &ScrollText{renderer: renderer, loop: loop,
+		workBuffer: ebiten.NewImage(screenWidth+1024, scrollHeight), warp: warp}
 }
 
 // loadMusic opens and plays the soundtrack through DCK.
@@ -283,13 +292,10 @@ func (g *Game) Update() error {
 		return err
 	}
 
-	// Update scroll text
-	g.scrollText.x -= scrollSpeed * g.speedMultiplier
-	// Adjusted for 2x font scale
-	textWidth := g.scrollText.renderer.Length() * 2
-	if g.scrollText.x < -textWidth {
-		g.scrollText.x = float64(screenWidth)
+	if err := g.scrollText.loop.SetVelocity(0, -scrollSpeed*g.speedMultiplier); err != nil {
+		return err
 	}
+	g.scrollText.loop.Step()
 
 	return g.warpClock.Step(g.speedMultiplier)
 }
@@ -310,9 +316,11 @@ func (g *Game) drawScrollText(screen *ebiten.Image) {
 	st := g.scrollText
 	st.workBuffer.Clear()
 	state := scrolling.IdentityState()
-	state.X = st.x
+	state.X = st.loop.At(0)
 	state.ScaleX = 2
 	state.ScaleY = 2
+	state.Cycle = true
+	state.End = 2 * st.renderer.GlyphCount()
 	state.Map = func(sample scrolling.Sample, op *ebiten.DrawImageOptions) bool {
 		return sample.X > -64 && sample.X < float64(st.workBuffer.Bounds().Dx())
 	}

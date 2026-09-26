@@ -213,9 +213,11 @@ func (c *logoRenderCheck) drawReferenceScroll(dst *ebiten.Image) {
 	c.work.Clear()
 	c.deformed.Clear()
 	state := scrolling.IdentityState()
-	state.X = g.scrollText.x
+	state.X = g.scrollText.loop.At(0)
 	state.ScaleX = 2
 	state.ScaleY = 2
+	state.Cycle = true
+	state.End = 2 * g.scrollText.renderer.GlyphCount()
 	state.Map = func(s scrolling.Sample, _ *ebiten.DrawImageOptions) bool {
 		return s.X > -64 && s.X < float64(c.work.Bounds().Dx())
 	}
