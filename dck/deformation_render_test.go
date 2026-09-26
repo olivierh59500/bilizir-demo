@@ -147,7 +147,7 @@ func (c *logoRenderCheck) Draw(screen *ebiten.Image) {
 	options.VerticalGain = -.6
 	options.RowHeight = 3
 	options.ColumnWidth = 11
-	tick, phase := c.game.warpClock.Tick(), c.game.warpClock.Phase()
+	tick, phase, logoPhase := c.game.warpClock.Tick(), c.game.warpClock.Phase(), c.game.logoClock.Phase()
 	if err := c.game.SetLogoWarpOptions(options); err != nil {
 		c.err = err
 		return
@@ -156,7 +156,7 @@ func (c *logoRenderCheck) Draw(screen *ebiten.Image) {
 	c.game.drawLogo(c.plain)
 	c.plain.ReadPixels(c.b)
 	phaseDifferences := differentPixels(c.a, c.b)
-	if phaseDifferences == 0 || c.game.warpClock.Tick() != tick || c.game.warpClock.Phase() != phase {
+	if phaseDifferences == 0 || c.game.warpClock.Tick() != tick || c.game.warpClock.Phase() != phase || c.game.logoClock.Phase() != logoPhase {
 		c.err = fmt.Errorf("frame %d: independent logo phase failed", c.frame)
 		return
 	}

@@ -12,7 +12,6 @@ import (
 
 	_ "image/png"
 	"log"
-	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -68,11 +67,12 @@ type Game struct {
 	logoBuffer             *ebiten.Image
 	logoDeformationEnabled bool
 	// Demo assets
-	cubeTrain *effects.SolidCubeTrain
-	logo      *ebiten.Image
-	logoPos   float64
-	logoWidth int
-	bars      *ebiten.Image
+	cubeTrain                     *effects.SolidCubeTrain
+	logo                          *ebiten.Image
+	logoWidth                     int
+	bars                          *ebiten.Image
+	logoClock                     *motion.WaveClock
+	plainLogoPath, warpedLogoPath *motion.HarmonicTransform
 
 	// Copper bars animation
 	copper *composite.CopperBars
@@ -112,6 +112,10 @@ func NewGame() *Game {
 		panic(err)
 	}
 	g.deformation, err = presets.BilizirStripWarpConfig(g.warpClock)
+	if err != nil {
+		panic(err)
+	}
+	g.logoClock, err = motion.NewWaveClock(presets.BilizirLogoClock())
 	if err != nil {
 		panic(err)
 	}
@@ -289,8 +293,10 @@ func (g *Game) Update() error {
 		return err
 	}
 
-	// Update logo position
-	g.logoPos += 0.05 * g.speedMultiplier
+	if err := g.logoClock.SetStep(presets.BilizirLogoPhaseStep() * g.speedMultiplier); err != nil {
+		return err
+	}
+	g.logoClock.Step()
 
 	if err := g.cubeTrain.SetSpeed(g.speedMultiplier); err != nil {
 		return err
@@ -314,7 +320,7 @@ func (g *Game) drawLogo(screen *ebiten.Image) {
 		return
 	}
 	op := ebiten.DrawImageOptions{}
-	op.GeoM.Translate(float64(screenWidth-g.logoWidth)/2+math.Sin(g.logoPos)*float64(screenWidth-g.logoWidth)/2, 0)
+	op.GeoM.Translate(g.plainLogoPath.At(g.logoClock.Phase()).X, 0)
 	composite.Instance{Image: g.logo, Options: op}.Draw(screen)
 }
 

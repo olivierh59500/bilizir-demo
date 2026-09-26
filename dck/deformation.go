@@ -8,6 +8,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	kit "github.com/olivierh59500/democonstructionkit"
 	"github.com/olivierh59500/democonstructionkit/composite"
+	"github.com/olivierh59500/democonstructionkit/motion"
 	"github.com/olivierh59500/democonstructionkit/presets"
 )
 
@@ -15,7 +16,23 @@ import (
 // reserves room for the horizontal displacement, whose amplitude is at most 50.
 const deformationMargin = presets.BilizirWarpSampleOrigin
 
+func (g *Game) configureLogoPaths() error {
+	plain, err := motion.NewHarmonicTransform(presets.BilizirPlainLogoMotion(screenWidth, float64(g.logoWidth)))
+	if err != nil {
+		return err
+	}
+	warped, err := motion.NewHarmonicTransform(presets.BilizirWarpedLogoMotion(screenWidth, float64(g.logoWidth), float64(g.logoMargin)))
+	if err != nil {
+		return err
+	}
+	g.plainLogoPath, g.warpedLogoPath = plain, warped
+	return nil
+}
+
 func (g *Game) initLogoDeformation() error {
+	if err := g.configureLogoPaths(); err != nil {
+		return err
+	}
 	height := g.logo.Bounds().Dy()
 	config := g.deformation
 	config.RowHeight, config.ColumnWidth = g.logoOptions.RowHeight, g.logoOptions.ColumnWidth
@@ -54,10 +71,7 @@ func (g *Game) SetLogoDeformation(enabled bool) { g.logoDeformationEnabled = ena
 func (g *Game) LogoDeformationEnabled() bool { return g.logoDeformationEnabled }
 
 func (g *Game) warpedLogoX() float64 {
-	center := float64(screenWidth-g.logoWidth) / 2
-	// Keep the whole moving logo inside the screen after the row displacement.
-	amplitude := math.Max(0, center-float64(g.logoMargin))
-	return center + math.Sin(g.logoPos)*amplitude
+	return g.warpedLogoPath.At(g.logoClock.Phase()).X
 }
 
 func (g *Game) drawWarpedLogo(screen *ebiten.Image) {

@@ -18,8 +18,11 @@ func TestLogoVariationIsDefaultAndCanBeDisabled(t *testing.T) {
 	if err := g.warpClock.SetPhase(12.3); err != nil {
 		t.Fatal(err)
 	}
+	if err := g.logoClock.SetPhase(.7); err != nil {
+		t.Fatal(err)
+	}
 	g.SetLogoDeformation(false)
-	if g.LogoDeformationEnabled() || g.warpClock.Tick() != 100 || g.warpClock.Phase() != 12.3 {
+	if g.LogoDeformationEnabled() || g.warpClock.Tick() != 100 || g.warpClock.Phase() != 12.3 || g.logoClock.Phase() != .7 {
 		t.Fatal("mode change modified animation clocks")
 	}
 	g.SetLogoDeformation(true)
@@ -34,6 +37,9 @@ func TestIndependentLogoPhaseAndSignedAmplitude(t *testing.T) {
 	if err := g.warpClock.SetPhase(4.5); err != nil {
 		t.Fatal(err)
 	}
+	if err := g.logoClock.SetPhase(.7); err != nil {
+		t.Fatal(err)
+	}
 	before := g.deformation.SampleX(5, kit.Frame{Tick: 123})
 	options := DefaultLogoWarpOptions()
 	options.RowPhase = -90
@@ -43,7 +49,7 @@ func TestIndependentLogoPhaseAndSignedAmplitude(t *testing.T) {
 	if err := g.SetLogoWarpOptions(options); err != nil {
 		t.Fatal(err)
 	}
-	if g.warpClock.Tick() != 123 || g.warpClock.Phase() != 4.5 || g.deformation.SampleX(5, kit.Frame{Tick: 123}) != before {
+	if g.warpClock.Tick() != 123 || g.warpClock.Phase() != 4.5 || g.logoClock.Phase() != .7 || g.deformation.SampleX(5, kit.Frame{Tick: 123}) != before {
 		t.Fatal("logo variation modified the scroll or clocks")
 	}
 	if g.logoMargin < 75 {
@@ -65,9 +71,14 @@ func TestLogoPaddingCoversEveryHorizontalWave(t *testing.T) {
 		t.Fatal(err)
 	}
 	g.logoWidth = config.Width
+	if err := g.configureLogoPaths(); err != nil {
+		t.Fatal(err)
+	}
 	// Check both movement extremes against every entry in the original table.
 	for _, phase := range []float64{-math.Pi / 2, math.Pi / 2} {
-		g.logoPos = phase
+		if err := g.logoClock.SetPhase(phase); err != nil {
+			t.Fatal(err)
+		}
 		for tick := 0; tick < g.warpClock.Len(); tick++ {
 			g.warpClock.SetTick(uint64(tick))
 			for row := 0; row < (config.Height+1)/2; row++ {

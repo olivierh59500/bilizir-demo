@@ -31,6 +31,11 @@ Also available: `-logo-row-height` and `-logo-column-width`. Phases are signed s
 The text and logo warps now share a DCK `motion.WarpTableClock`, while each
 `StripWarp` keeps its own phase, gain and strip-size variation. The DCK game no
 longer stores a duplicate wave table or computes the column cosine itself.
+The logo's plain and warped horizontal paths use `motion.HarmonicTransform`
+recipes driven by one `motion.WaveClock`. Adjust the path phase or sine amplitude
+independently from the strip deformation; changing logo warp padding rebuilds
+the path without resetting that clock. A 5,000-tick comparison checks both
+positions against the original formulas through speed and padding changes.
 The proportional text now uses a relative DCK wrap clock and two virtual
 glyph copies, so its next pass is already entering when the previous one
 leaves. This intentionally removes the blank interval after the first full
