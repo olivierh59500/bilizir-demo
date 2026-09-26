@@ -67,8 +67,7 @@ type Game struct {
 	logoBuffer             *ebiten.Image
 	logoDeformationEnabled bool
 	// Demo assets
-	cubes     [nbCubes]*effects.SolidCube
-	spritePos [nbCubes]float64
+	cubeTrain *effects.SolidCubeTrain
 	logo      *ebiten.Image
 	logoPos   float64
 	logoWidth int
@@ -126,17 +125,9 @@ func (g *Game) initScrollX() {
 func (g *Game) loadAssets() error {
 	var err error
 
-	// Initialize cube positions
-	for i := 0; i < nbCubes; i++ {
-		g.spritePos[i] = float64(0.15) * float64(i+1)
-		// Create cubes with different initial rotations
-		g.cubes[i], err = effects.NewSolidCube(presets.BilizirCube(20))
-		if err != nil {
-			return err
-		}
-		g.cubes[i].Rotation.X = float64(i) * 0.3
-		g.cubes[i].Rotation.Y = float64(i) * 0.5
-		g.cubes[i].Rotation.Z = float64(i) * 0.2
+	g.cubeTrain, err = effects.NewSolidCubeTrain(presets.BilizirCubeTrain(screenWidth, nbCubes))
+	if err != nil {
+		return err
 	}
 
 	// Load logo
@@ -288,16 +279,11 @@ func (g *Game) Update() error {
 	// Update logo position
 	g.logoPos += 0.05 * g.speedMultiplier
 
-	// Update ball sprites and cube rotations
-	for i := 0; i < nbCubes; i++ {
-		g.spritePos[i] += 0.04 * g.speedMultiplier
-
-		// Update cube rotations
-		g.cubes[i].Rotate(
-			0.02*g.speedMultiplier*(1+float64(i)*0.1),
-			0.03*g.speedMultiplier*(1+float64(i)*0.15),
-			0.01*g.speedMultiplier*(1+float64(i)*0.05),
-		)
+	if err := g.cubeTrain.SetSpeed(g.speedMultiplier); err != nil {
+		return err
+	}
+	if err := g.cubeTrain.Update(kit.Frame{}); err != nil {
+		return err
 	}
 
 	// Update scroll text
@@ -324,17 +310,6 @@ func (g *Game) drawLogo(screen *ebiten.Image) {
 	op := ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(screenWidth-g.logoWidth)/2+math.Sin(g.logoPos)*float64(screenWidth-g.logoWidth)/2, 0)
 	composite.Instance{Image: g.logo, Options: op}.Draw(screen)
-}
-
-// drawCubes draws the rotating 3D cubes
-func (g *Game) drawCubes(screen *ebiten.Image) {
-	for i := 0; i < nbCubes; i++ {
-		xPos := float64((screenWidth-40)/2) + (float64((screenWidth-40)/2) * math.Sin(g.spritePos[i]))
-		yPos := 186 + (84 * math.Cos(g.spritePos[i]*2.5))
-
-		// Draw the 3D cube
-		g.cubes[i].DrawAt(screen, xPos, yPos)
-	}
 }
 
 // drawScrollText draws the TCB-style scrolling text with deformation
@@ -369,7 +344,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.drawLogo(screen)
 
 	// Draw cubes
-	g.drawCubes(screen)
+	g.cubeTrain.Draw(screen)
 
 	// Draw scrolling text with its deformation effect
 	g.drawScrollText(screen)
@@ -382,10 +357,8 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 
 // Cleanup cleans up resources
 func (g *Game) Cleanup() {
-	for _, cube := range g.cubes {
-		if cube != nil {
-			cube.Close()
-		}
+	if g.cubeTrain != nil {
+		g.cubeTrain.Close()
 	}
 	if g.logoWarp != nil {
 		g.logoWarp.Close()

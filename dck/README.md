@@ -13,6 +13,11 @@ The 300 background copper bars use one `composite.CopperBars` instance with
 batched quads and the shared two-clock table preset. Width, source-strip period,
 bar count, sample spacing and clock phases can be changed in its config. The
 20-second migration capture matched all 1,200 original decoded frames.
+The twelve rotating cubes now use one `effects.SolidCubeTrain`. DCK owns their
+independent paths, rotations and bounded draw batch; the Bilizir preset keeps
+the original 20-pixel material, phase spacing and live speed multiplier.
+The pure 5,000-tick pose comparison passes; an opt-in GPU test is ready to
+compare the new batch with the previous twelve individual cube draws.
 
 ## Logo variation
 
