@@ -54,6 +54,7 @@ var musicData = originalassets.
 type ScrollText struct {
 	renderer   *scrolling.Scrolling
 	loop       *motion.WrapBank
+	window     *scrolling.CyclicWindow
 	workBuffer *ebiten.Image
 	warp       *composite.StripWarp
 }
@@ -183,7 +184,13 @@ func (g *Game) initScrollText() {
 	if err != nil {
 		panic(err)
 	}
-	g.scrollText = &ScrollText{renderer: renderer, loop: loop,
+	window, err := scrolling.NewCyclicWindow(renderer, scrolling.CyclicWindowConfig{
+		Scale: 2, Minimum: -64, Maximum: screenWidth + 1024, Copies: 2,
+	})
+	if err != nil {
+		panic(err)
+	}
+	g.scrollText = &ScrollText{renderer: renderer, loop: loop, window: window,
 		workBuffer: ebiten.NewImage(screenWidth+1024, scrollHeight), warp: warp}
 }
 
@@ -315,15 +322,8 @@ func (g *Game) drawLogo(screen *ebiten.Image) {
 func (g *Game) drawScrollText(screen *ebiten.Image) {
 	st := g.scrollText
 	st.workBuffer.Clear()
-	state := scrolling.IdentityState()
-	state.X = st.loop.At(0)
-	state.ScaleX = 2
+	state := st.window.At(st.loop.At(0))
 	state.ScaleY = 2
-	state.Cycle = true
-	state.End = 2 * st.renderer.GlyphCount()
-	state.Map = func(sample scrolling.Sample, op *ebiten.DrawImageOptions) bool {
-		return sample.X > -64 && sample.X < float64(st.workBuffer.Bounds().Dx())
-	}
 	st.renderer.DrawAt(st.workBuffer, state)
 	frame := kit.Frame{Tick: g.warpClock.Tick()}
 	st.warp.DrawAt(screen, st.workBuffer, frame, 0, float64(screenHeight-140))

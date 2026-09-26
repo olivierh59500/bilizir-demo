@@ -36,6 +36,9 @@ glyph copies, so its next pass is already entering when the previous one
 leaves. This intentionally removes the blank interval after the first full
 message while preserving all positions before that boundary. The original Go
 version remains unchanged.
+`scrolling.CyclicWindow` visits only the proportional glyphs near the 1,824-pixel
+work surface, including their bearings; the two full message copies are never
+submitted as unbounded per-frame work.
 
 Native checks: `go test -tags dck_rendercheck ./dck`.
 

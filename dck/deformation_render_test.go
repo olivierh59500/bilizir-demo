@@ -17,7 +17,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	fidelitycapture "github.com/olivierh59500/democonstructionkit/fidelity/ebiten"
 	"github.com/olivierh59500/democonstructionkit/render"
-	"github.com/olivierh59500/democonstructionkit/scrolling"
 )
 
 var renderCheckFrames = []int{0, 1, 60, 240, 600, 1200, 2400, 4800}
@@ -212,15 +211,8 @@ func (c *logoRenderCheck) drawReferenceScroll(dst *ebiten.Image) {
 	g := c.game
 	c.work.Clear()
 	c.deformed.Clear()
-	state := scrolling.IdentityState()
-	state.X = g.scrollText.loop.At(0)
-	state.ScaleX = 2
+	state := g.scrollText.window.At(g.scrollText.loop.At(0))
 	state.ScaleY = 2
-	state.Cycle = true
-	state.End = 2 * g.scrollText.renderer.GlyphCount()
-	state.Map = func(s scrolling.Sample, _ *ebiten.DrawImageOptions) bool {
-		return s.X > -64 && s.X < float64(c.work.Bounds().Dx())
-	}
 	g.scrollText.renderer.DrawAt(c.work, state)
 	for row := 0; row < 32; row++ {
 		table := g.warpClock.Table()
