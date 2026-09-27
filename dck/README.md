@@ -3,6 +3,8 @@
 This directory contains the construction-kit version of bilizir-demo. The original Go sources are preserved at their original paths (revision `4720c97e03f3d2392211a37755d41b752fbad288`), with small asset accessors so both versions use the same embedded resources.
 
 Run the original with `go run ./cmd/bilizir-demo` and this version with `go run ./dck/cmd/bilizir-demo` from the repository root.
+Build, install and launch this DCK version on a connected Android device with
+`scripts/run-android.sh --dck`; omitting the flag selects the preserved source.
 
 The choreography and assets remain in this repository. Reusable rendering and
 effects come from the published `github.com/olivierh59500/democonstructionkit`
@@ -62,5 +64,10 @@ their output directories. At frames 0, 1, 60, 240, 600, 1,200, 2,400 and
 original. With the seamless DCK default, the scrolling layer is still exact
 through 2,400; the later difference is the deliberate removal of the blank
 reset. The warped logo is an independent, configurable visual variation.
+`go run ./cmd/fidelity -demo bilizir-demo` in DCK also compared the pinned
+original and published DCK revisions: all eight complete frames reported zero
+different pixels out of 480,000. The updated DCK APK was installed on Pixel
+10a; twelve short presentation windows yielded 744 distinct intervals, p95
+16.763 ms, maximum 17.015 ms and none above 20 ms.
 
 See the [DCK effect configuration guide](../../../lib/democonstructionkit/docs/EFFECT_OPTIONS.md) for the shared API and examples.

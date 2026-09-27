@@ -1,6 +1,15 @@
 #!/bin/sh
 set -eu
 
+mobile_package=./mobile
+for option in "$@"; do
+    case "$option" in
+        --dck) mobile_package=./dck/mobile ;;
+        --help|-h) echo "Usage: $0 [--dck]"; exit 0 ;;
+        *) echo "Usage: $0 [--dck]" >&2; exit 2 ;;
+    esac
+done
+
 project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 android_sdk=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}
 java_home_path=${JAVA_HOME:-}
@@ -43,7 +52,7 @@ go run github.com/hajimehoshi/ebiten/v2/cmd/ebitenmobile@v2.9.11 \
     -androidapi 23 \
     -javapkg com.olivierh.bilizirdemo \
     -o android/app/libs/bilizirdemo.aar \
-    ./mobile
+    "$mobile_package"
 
 echo "→ Compilation de l’APK de débogage"
 "$project_root/android/gradlew" -p "$project_root/android" --console=plain clean assembleDebug
