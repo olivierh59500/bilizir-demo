@@ -22,6 +22,15 @@ compare the new batch with the previous twelve individual cube draws.
 ## Logo variation
 
 The DCK logo shares the text deformation by default; L toggles the historical logo.
+For the complete preserved Go presentation, start with:
+
+```sh
+go run ./dck/cmd/bilizir-demo -logo-warp=false -original-scroll-reset=true
+```
+
+The second option selects one text copy and the original strict reset to the
+right edge; the default remains the requested seamless loop. Both switches
+leave the source implementation unchanged.
 
 ```sh
 go run ./dck/cmd/bilizir-demo -logo-row-phase=-40 -logo-column-phase=12 -logo-x-gain=.7 -logo-y-gain=-1.2
@@ -46,5 +55,12 @@ work surface, including their bearings; the two full message copies are never
 submitted as unbounded per-frame work.
 
 Native checks: `go test -tags dck_rendercheck ./dck`.
+For full-frame parity, run the opt-in original and DCK capture tests with
+`bilizir_original_rendercheck` and `bilizir_dck_paritycheck`, then compare
+their output directories. At frames 0, 1, 60, 240, 600, 1,200, 2,400 and
+4,800, reference-mode DCK frames are byte-identical to the preserved Go
+original. With the seamless DCK default, the scrolling layer is still exact
+through 2,400; the later difference is the deliberate removal of the blank
+reset. The warped logo is an independent, configurable visual variation.
 
 See the [DCK effect configuration guide](../../../lib/democonstructionkit/docs/EFFECT_OPTIONS.md) for the shared API and examples.

@@ -11,6 +11,8 @@ import (
 
 func main() {
 	options := bilizir.DefaultLogoWarpOptions()
+	logoWarp := flag.Bool("logo-warp", true, "deform the logo with the scrolling wave")
+	originalScrollReset := flag.Bool("original-scroll-reset", false, "use the preserved Go version's blank text reset")
 	flag.IntVar(&options.RowPhase, "logo-row-phase", 0, "horizontal wave phase in row strips")
 	flag.IntVar(&options.ColumnPhase, "logo-column-phase", 0, "vertical wave phase in column strips")
 	flag.Float64Var(&options.HorizontalGain, "logo-x-gain", 1, "horizontal deformation amplitude multiplier")
@@ -23,6 +25,10 @@ func main() {
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 
 	game := bilizir.NewGame()
+	game.SetLogoDeformation(*logoWarp)
+	if err := game.SetOriginalScrollReset(*originalScrollReset); err != nil {
+		log.Fatal(err)
+	}
 	if err := game.SetLogoWarpOptions(options); err != nil {
 		log.Fatal(err)
 	}

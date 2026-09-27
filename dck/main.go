@@ -66,6 +66,7 @@ type Game struct {
 	logoWarp               *composite.StripWarp
 	logoBuffer             *ebiten.Image
 	logoDeformationEnabled bool
+	originalScrollReset    bool
 	// Demo assets
 	cubeTrain                     *effects.SolidCubeTrain
 	logo                          *ebiten.Image
@@ -180,7 +181,14 @@ func (g *Game) initScrollText() {
 	if err != nil {
 		panic(err)
 	}
-	loopConfig, err := presets.BilizirScrollLoop(renderer.Length() * 2)
+	var loopConfig motion.WrapBankConfig
+	copies := 2
+	if g.originalScrollReset {
+		loopConfig, err = presets.BilizirOriginalScrollLoop(renderer.Length()*2, screenWidth)
+		copies = 1
+	} else {
+		loopConfig, err = presets.BilizirScrollLoop(renderer.Length() * 2)
+	}
 	if err != nil {
 		panic(err)
 	}
@@ -189,7 +197,7 @@ func (g *Game) initScrollText() {
 		panic(err)
 	}
 	window, err := scrolling.NewCyclicWindow(renderer, scrolling.CyclicWindowConfig{
-		Scale: 2, Minimum: -64, Maximum: screenWidth + 1024, Copies: 2,
+		Scale: 2, Minimum: -64, Maximum: screenWidth + 1024, Copies: copies,
 	})
 	if err != nil {
 		panic(err)
