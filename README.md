@@ -7,6 +7,25 @@ the DMA logo as well. Press **L** to switch between the warped logo and its orig
 appearance. Both use the same animation clocks, and the scrolling text retains
 its original rendering.
 
+<!-- Project showcase -->
+## Screenshots
+
+[![Pink 3D lettering and a cube trail over twisting rainbow columns](docs/media/screenshot-1.png)](docs/media/screenshot-1.png)
+
+Pink 3D lettering and a cube trail over twisting rainbow columns.
+
+## Video
+
+[![Animated preview of Bilizir Demo](docs/media/preview.gif)](https://github.com/olivierh59500/bilizir-demo/raw/refs/heads/main/docs/media/preview.mp4)
+
+**[Watch or download the 24-second MP4 preview with sound](https://github.com/olivierh59500/bilizir-demo/raw/refs/heads/main/docs/media/preview.mp4)**
+
+This preview is captured from the Go production.
+
+The animated image is silent; the MP4 includes the soundtrack.
+
+<!-- End project showcase -->
+
 ## Features
 
 - **Classic Demo Effects**:
